@@ -20,7 +20,7 @@ struct Thread {
 
 ### 上下文信息与切换过程
 
-上下文信息主要是寄存器集合,riscv指令集规定了函数调用时**调用者保存的寄存器(caller saved)**以及被**被调用者保存寄存器(callee saved)**, 我们需要被调用者保存寄存器.
+上下文信息主要是寄存器集合,riscv指令集规定了函数调用时**调用者保存的寄存器(caller saved)**以及**被调用者保存寄存器(callee saved)**, 我们需要被调用者保存寄存器.
 
 #[repr(C)] 表示对这个结构体按 C 语言标准 进行内存布局，也就是从起始地址开始，按字段的定义顺序依次排列。
 
@@ -54,7 +54,7 @@ struct ThreadContext {
 }
 ```
 
-创建线程时,ra中保存的时runtime运行时的地址, nra保存的是要执行函数的地址.
+创建线程时,ra中保存的是runtime运行时的地址, nra保存的是要执行函数的地址.
 ```rust
     pub fn spawn(&mut self, f: fn()) {
         let available = self
@@ -135,7 +135,7 @@ unsafe fn switch(old: *mut ThreadContext, new: *const ThreadContext){}
 
 该汇编作用为: **把当前寄存器x1(abi名称ra)中的值, 保存到基地址为a0处偏移量为0x00处的内存中**去. 也就是ThreadContext中的第一个字段ra
 ```rust
-接下来就是按顺序把各寄存器中的值保存到ThreadContext相应字段中去
+接下来是按顺序把各寄存器中的值保存到ThreadContext相应字段中去
 sd x2, 0x08(a0)
 sd x8, 0x10(a0)
 sd x9, 0x18(a0)
@@ -153,7 +153,7 @@ sd x27, 0x68(a0)
 这里要注意的是ra被保存了2次
 sd x1, 0x70(a0)
 
-接下来就是把新线程的上下文信息加载到当前寄存器中
+接下来是把新线程的上下文信息加载到当前寄存器中
 ld x1, 0x00(a1)
 ld x2, 0x08(a1)
 ld x8, 0x10(a1)
@@ -174,13 +174,15 @@ ld t0, 0x70(a1)
 
 jr t0
 
-jr t0 实际为 jalr x0,0(t0)    ret = jr ra = jalr x0, 0(ra)
+jr t0 实际为 jalr x0, 0(t0)       
+
+ret = jr ra = jalr x0, 0(ra)
 
 跳转到t0中值所指定的位置,不保存返回地址
 
 available.ctx.nra = f as u64;  //new return address
 
-创建线程时, nra字段中保存的就是线程要执行函数的地址.这里跳转过去就线程开始执行函数了.
+创建线程时, nra字段中保存的是线程要执行函数的地址.这里跳转过去线程就开始执行函数了.
 
 一个线程创建之后它的上下文信息中ra的值为t_return函数的地址. nra的值为实际需要执行函数的地址. jr t0跳转过去执行函数之后.它上下文中的ra会变成执行过程中的pc. 但是nra的值是不会发生变化的.
 

@@ -3,7 +3,7 @@
 
 ## 协程表示
 
-Fib便是我们的协程数据结构, 其包装了一个state, 只有两种状态Halted和Running.
+Fib是我们的协程数据结构, 其包装了一个state, 只有两种状态Halted和Running.
 
 ```rust
 enum State {
@@ -265,3 +265,106 @@ Running
 3 D 
 Done
 ```
+
+
+## pin
+
+通过生成器的例子来看为什么需要pin
+
+future在rust中是由生成器来实现的.
+
+future每一次被poll相当于生成器执行一次resume. 每次resume生成器都将执行到一个状态 
+
+GeneratorState<Self::Yield, Self::Return>
+
+如GeneratorA, 包含Enter, Yield1, Exit状态,
+
+其中Yield1 包含一个自引用数据结构
+
+borrowed引用指向上面的 to_borrow: String
+
+如之前介绍.await时提到的, 当一个.await一个future时, 闭包相关的语法会将所捕获的变量的所有权进行转移, 这时borrowed会形成一个悬垂指针.
+
+Box::pin 为我们提供了一个safe的方法 来将对象!Unpin到**堆**上
+
+```rust
+enum GeneratorA {
+    Enter,
+    Yield1 {
+        to_borrow: String,
+        borrowed: *const String,
+    },
+    Exit,
+}
+
+
+```
+
+```rust
+enum GeneratorA {
+    Enter,
+    Yield1 {
+        to_borrow: String,
+        borrowed: *const String,
+    },
+    Exit,
+}
+
+impl GeneratorA {
+    fn start() -> Self {
+        GeneratorA::Enter
+    }
+}
+
+// This tells us that the underlying pointer is not safe to move after pinning.
+// In this case, only we as implementors "feel" this, however, if someone is
+// relying on our Pinned pointer this will prevent them from moving it. You need
+// to enable the feature flag ` #![feature(optin_builtin_traits)]` and use the
+// nightly compiler to implement `!Unpin`. Normally, you would use
+// `std::marker::PhantomPinned` to indicate that the struct is `!Unpin`.
+impl !Unpin for GeneratorA { }
+
+impl Generator for GeneratorA {
+    type Yield = usize;
+    type Return = ();
+    fn resume(self: Pin<&mut Self>) -> GeneratorState<Self::Yield, Self::Return> {
+        // lets us get ownership over current state
+        let this = unsafe { self.get_unchecked_mut() };
+            match this {
+            GeneratorA::Enter => {
+                let to_borrow = String::from("Hello");
+                let borrowed = &to_borrow;
+                let res = borrowed.len();
+                *this = GeneratorA::Yield1 {to_borrow, borrowed: std::ptr::null()};
+
+                // Trick to actually get a self reference. We can't reference
+                // the `String` earlier since these references will point to the
+                // location in this stack frame which will not be valid anymore
+                // when this function returns.
+                if let GeneratorA::Yield1 {to_borrow, borrowed} = this {
+                    *borrowed = to_borrow;
+                }
+
+                GeneratorState::Yielded(res)
+            }
+
+            GeneratorA::Yield1 {borrowed, ..} => {
+                let borrowed: &String = unsafe {&**borrowed};
+                println!("{} world", borrowed);
+                *this = GeneratorA::Exit;
+                GeneratorState::Complete(())
+            }
+            GeneratorA::Exit => panic!("Can't advance an exited generator!"),
+        }
+    }
+}
+
+```
+
+更详细的解释:
+
+https://rust-lang.github.io/async-book/04_pinning/01_chapter.html
+
+https://os.phil-opp.com/async-await/#pinning
+
+https://course.rs/advance/circle-self-ref/self-referential.html
