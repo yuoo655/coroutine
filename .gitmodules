@@ -1,0 +1,4 @@
+[submodule "rCore-Tutorial-v3"]
+	path = rCore-Tutorial-v3
+	url = https://github.com/yuoo655/rCore-Tutorial-v3
+	branch = ch8
