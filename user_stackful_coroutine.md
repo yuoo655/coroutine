@@ -134,7 +134,7 @@ unsafe fn switch(old: *mut ThreadContext, new: *const ThreadContext){}
 以 sd x1, 0x00(a0)为例
 
 该汇编作用为: **把当前寄存器x1(abi名称ra)中的值, 保存到基地址为a0处偏移量为0x00处的内存中**去. 也就是ThreadContext中的第一个字段ra
-
+```rust
 接下来就是按顺序把各寄存器中的值保存到ThreadContext相应字段中去
 sd x2, 0x08(a0)
 sd x8, 0x10(a0)
@@ -169,8 +169,9 @@ ld x25, 0x58(a1)
 ld x26, 0x60(a1)
 ld x27, 0x68(a1)
 ld t0, 0x70(a1)
-
+```
 最后跳转过去
+
 jr t0
 
 jr t0 实际为 jalr x0,0(t0)    ret = jr ra = jalr x0, 0(ra)
