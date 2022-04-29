@@ -77,7 +77,7 @@ impl<'a> Future for Waiter<'a> {
 
 ## 协程执行器实现
 
-Executor包含fibs  fibs为一个VecDeque,里面存放的时futureobject
+Executor包含fibs  fibs为一个VecDeque,里面存放的是futureobject
 
 创建Executor. 初始化一个VecDeque
 
