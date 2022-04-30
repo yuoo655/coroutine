@@ -176,9 +176,9 @@ jr t0
 
 jr t0 实际为 jalr x0, 0(t0)       
 
-ret = jr ra = jalr x0, 0(ra)
+常见的ret = jr ra = jalr x0, 0(ra)
 
-跳转到t0中值所指定的位置,不保存返回地址
+效果为跳转到t0中值所指定的位置,不保存返回地址
 
 available.ctx.nra = f as u64;  //new return address
 
@@ -188,8 +188,23 @@ available.ctx.nra = f as u64;  //new return address
 
 **当它不是初次运行被切换时候. 我们不再需要保存nra**. 所以就有了前面的sd x1, 0x70(a0). 用当前ra的值覆盖掉之前的nra. 这样ld t0, 0x70(a1)就会加载正确的pc进来执行(而不是再跳转到nra从头执行)
 
+这段汇编代码包装在一个switch函数中,编译器会在保存局部变量之后,通过
 
+auipc ra, 0   保存当前pc到ra中
 
+jalr offset(ra) = jalr x1, 0(rs) 跳转到offset指定地址, 返回结果保存x1(ra)中. offset地址就是switch汇编代码第一条指令的地址. 
+
+jalr 该指令将当前PC值加4的结果写入目的寄存器 然后设置PC值为源寄存器加立即数为新PC的值
+
+riscv-sepc中的描述:
+
+The indirect jump instruction JALR (jump and link register) uses the I-type encoding. The target
+address is obtained by adding the sign-extended 12-bit I-immediate to the register rs1, then setting
+the least-significant bit of the result to zero. The address of the instruction following the jump
+(pc+4) is written to register rd. Register x0 can be used as the destination if the result is not
+required.
+
+所以在上面写的switch汇编中ra就是切换前的pc的之后第一条指令.
 
 ### 测试
 

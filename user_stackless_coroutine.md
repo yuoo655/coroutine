@@ -114,7 +114,7 @@ impl Executor {
 
 ## 协程执行器运行
 
-协程执行器执行协程就是从协程队列fibs种获取一个future object, 再调用其poll方法.
+协程执行器执行协程就是从协程队列fibs中获取一个future object, 再调用其poll方法.
 
 当poll返回Poll::Pending时表示协程未完成,将其插回队列中
 

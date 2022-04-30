@@ -11,8 +11,6 @@
 
 往调度器里添加任务
 
-设置TrapContext
-
 ```rust
 pub fn kthread_create(f: fn()) {
     //创建内核线程
@@ -22,15 +20,6 @@ pub fn kthread_create(f: fn()) {
 
     //往调度器加任务,与用户线程放在一起调度.
     add_task(Arc::clone(&new_task));
-
-    let new_task_inner = new_task.inner_exclusive_access();
-    let new_task_trap_cx = new_task_inner.get_trap_cx();
-
-    //设置TrapContext
-    *new_task_trap_cx = TrapContext::kernel_init_context(
-        f as usize,
-        kernel_stack,
-    );
 }
 ```
 
@@ -56,7 +45,7 @@ pub fn kthread_create(f: fn()) {
 
 4.设置所属进程
 
-Arc::downgrade(&process) 表示将Arc转为Weak. 
+Arc::downgrade(&process) 表示将Arc转为Weak弱引用计数.
 
 rCore-Tutorial中的相关解释:
 
@@ -192,6 +181,8 @@ pub fn exit_kthread_and_run_next(exit_code: i32) {
 kernel thread1 会打印几行信息之后便退出
 
 kernel thread2/3 会打印一行信息之后就会主动切换到下一个线程,可能是内核线程也可能是用户进程.
+
+在shell运行起来的时候,可以输入要运行的用户程序,也可以不断按回车来切换到内核线程.
 
 ```rust
 pub fn rust_main() -> ! {
