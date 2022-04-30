@@ -185,8 +185,14 @@ pub fn exit_kthread_and_run_next(exit_code: i32) {
 
 用户线程--->用户线程
 
+用户线程--->内核线程
 
-用户线程--->内核线程的切换在这里没有体现
+创建了3个内核线程
+
+kernel thread1 会打印几行信息之后便退出
+
+kernel thread2/3 会打印一行信息之后就会主动切换到下一个线程,可能是内核线程也可能是用户进程.
+
 ```rust
 pub fn rust_main() -> ! {
     clear_bss();
@@ -208,33 +214,35 @@ pub fn kernel_stackful_coroutine_test() {
     kthread_create( ||
         {
             let id = 1;
-            println!("THREAD {:?} STARTING", id);
+            println!("kernel thread {:?} STARTING", id);
             for i in 0..10 {
-                println!("thread: {} counter: {}", id, i);
+                println!("kernel thread: {} counter: {}", id, i);
             }
-            println!("THREAD {:?} FINISHED", id);
+            println!("kernel thread {:?} FINISHED", id);
             kthread_stop();
         }
     );
     kthread_create( ||
         {
             let id = 2;
-            println!("THREAD {:?} STARTING", id);
+            println!("kernel thread {:?} STARTING", 2);
             for i in 0..10 {
-                println!("thread: {} counter: {}", id, i);
+                println!("kernel thread: {} counter: {}", 2, i);
+                kthread_yield();
             }
-            println!("THREAD {:?} FINISHED", id);
+            println!("kernel thread {:?} FINISHED", 2);
             kthread_stop();
         }
     );
     kthread_create( ||
         {
             let id = 3;
-            println!("THREAD {:?} STARTING", id);
+            println!("kernel thread {:?} STARTING", 3);
             for i in 0..10 {
-                println!("thread: {} counter: {}", id, i);
+                println!("kernel thread: {} counter: {}", 3, i);
+                kthread_yield();
             }
-            println!("THREAD {:?} FINISHED", id);
+            println!("kernel thread {:?} FINISHED", 3);
             kthread_stop();
         }
     );
@@ -243,127 +251,80 @@ pub fn kernel_stackful_coroutine_test() {
 
 演示结果
 ```rust
-[rustsbi] RustSBI version 0.2.0-alpha.6
-.______       __    __      _______.___________.  _______..______   __
-|   _  \     |  |  |  |    /       |           | /       ||   _  \ |  |
-|  |_)  |    |  |  |  |   |   (----`---|  |----`|   (----`|  |_)  ||  |
-|      /     |  |  |  |    \   \       |  |      \   \    |   _  < |  |
-|  |\  \----.|  `--'  |.----)   |      |  |  .----)   |   |  |_)  ||  |
-| _| `._____| \______/ |_______/       |__|  |_______/    |______/ |__|
-
-[rustsbi] Implementation: RustSBI-QEMU Version 0.0.2
-[rustsbi-dtb] Hart count: cluster0 with 1 cores
-[rustsbi] misa: RV64ACDFIMSU
-[rustsbi] mideleg: ssoft, stimer, sext (0x222)
-[rustsbi] medeleg: ima, ia, bkpt, la, sa, uecall, ipage, lpage, spage (0xb1ab)
-[rustsbi] pmp0: 0x10000000 ..= 0x10001fff (rwx)
-[rustsbi] pmp1: 0x80000000 ..= 0x8fffffff (rwx)
-[rustsbi] pmp2: 0x0 ..= 0xffffffffffffff (---)
-F:\Program Files\qemu-2021-02-08\qemu-system-riscv64.exe: clint: invalid write: 00000004
-[rustsbi] enter supervisor 0x80200000
-[kernel] Hello, world!
-last 969 Physical Frames.
-.text [0x80200000, 0x8021e000)
-.rodata [0x8021e000, 0x80225000)
-.data [0x80225000, 0x80226000)
-.bss [0x80226000, 0x80437000)
-mapping .text section
-mapping .rodata section
-mapping .data section
-mapping .bss section
-mapping physical memory
-mapping memory-mapped registers
-remap_test passed!
-/**** APPS ****
-cat
-cmdline_args
-count_lines
-early_exit
-exit
-fantastic_text
-filetest_simple
-forktest
-forktest2
-forktest_simple
-forktree
-green_threads
-hello_world
-huge_write
-infloop
-initproc
-matrix
-mpsc_sem
-phil_din_mutex
-pipetest
-pipe_large_test
-priv_csr
-priv_inst
-race_adder
-race_adder_arg
-race_adder_atomic
-race_adder_loop
-race_adder_mutex_blocking
-race_adder_mutex_spin
-run_pipe_test
-sleep
-sleep_simple
-stackful_coroutine
-stackless_coroutine
-stack_overflow
-store_fault
-sync_sem
-test_condvar
-threads
-threads_arg
-until_timeout
-usertests
-user_shell
-yield
 **************/
 kernel_stackful_coroutine_test
-THREAD 1 STARTING
-thread: 1 counter: 0
-thread: 1 counter: 1
-thread: 1 counter: 2
-thread: 1 counter: 3
-thread: 1 counter: 4
-thread: 1 counter: 5
-thread: 1 counter: 6
-thread: 1 counter: 7
-thread: 1 counter: 8
-thread: 1 counter: 9
-THREAD 1 FINISHED
+kthread_create
+kstack_alloc  kstack_bottom: 0xffffffffffffd000, kstack_top: 0xfffffffffffff000
+context ppn :PPN:0x80234
+kstack_drop  kstack_bottom: PA:0xffffffffffd000
+kthread trap context addr:0x80207c7a
+kthread cx: TrapContext { x: [0, 0, 80240000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], sstatus: Sstatus { bits: 100 }, sepc: 80207c7a, kernel_satp: 8000000000080436, kernel_sp: 80240000, trap_handler: 80205eee }
+kthread_create
+kstack_alloc  kstack_bottom: 0xffffffffffffa000, kstack_top: 0xffffffffffffc000
+context ppn :PPN:0x80234
+kstack_drop  kstack_bottom: PA:0xffffffffffa000
+kthread trap context addr:0x80207918
+kthread cx: TrapContext { x: [0, 0, 80240000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], sstatus: Sstatus { bits: 100 }, sepc: 80207918, kernel_satp: 8000000000080436, kernel_sp: 80240000, trap_handler: 80205eee }
+kstack_alloc  kstack_bottom: 0xffffffffffff7000, kstack_top: 0xffffffffffff9000
+kernel stack top: 0xffffffffffff9000
+kstack_drop  kstack_bottom: PA:0xffffffffff7000
+app_init_context :0x10000
+kernel thread 1 STARTING
+kernel thread: 1 counter: 0
+kernel thread: 1 counter: 1
+kernel thread: 1 counter: 2
+kernel thread: 1 counter: 3
+kernel thread: 1 counter: 4
+kernel thread: 1 counter: 5
+kernel thread: 1 counter: 6
+kernel thread: 1 counter: 7
+kernel thread: 1 counter: 8
+kernel thread: 1 counter: 9
+kernel thread 1 FINISHED
 kthread do exit
 exit_kthread_and_run_next
-THREAD 2 STARTING
-thread: 2 counter: 0
-thread: 2 counter: 1
-thread: 2 counter: 2
-thread: 2 counter: 3
-thread: 2 counter: 4
-thread: 2 counter: 5
-thread: 2 counter: 6
-thread: 2 counter: 7
-thread: 2 counter: 8
-thread: 2 counter: 9
-THREAD 2 FINISHED
-kthread do exit
-exit_kthread_and_run_next
-THREAD 3 STARTING
-thread: 3 counter: 0
-thread: 3 counter: 1
-thread: 3 counter: 2
-thread: 3 counter: 3
-thread: 3 counter: 4
-thread: 3 counter: 5
-thread: 3 counter: 6
-thread: 3 counter: 7
-thread: 3 counter: 8
-thread: 3 counter: 9
-THREAD 3 FINISHED
-kthread do exit
-exit_kthread_and_run_next
-entering user shell
+kernel thread 2 STARTING
+kernel thread: 2 counter: 0
+kernel thread 3 STARTING
+kernel thread: 3 counter: 0
+kernel thread: 2 counter: 1
+kernel thread: 3 counter: 1
+kstack_alloc  kstack_bottom: 0xffffffffffff1000, kstack_top: 0xffffffffffff3000
+kernel stack top: 0xffffffffffff3000
+kstack_drop  kstack_bottom: PA:0xffffffffff1000
+kernel thread: 2 counter: 2
+kernel thread: 3 counter: 2
+app_init_context :0x10000
+kernel thread: 2 counter: 3
+kernel thread: 3 counter: 3
 Rust user shell
+>> kernel thread: 2 counter: 4
+kernel thread: 3 counter: 4
+
+>> kernel thread: 2 counter: 5
+kernel thread: 3 counter: 5
+
+>> kernel thread: 2 counter: 6
+kernel thread: 3 counter: 6
+
+>> kernel thread: 2 counter: 7
+kernel thread: 3 counter: 7
+
+>> kernel thread: 2 counter: 8
+kernel thread: 3 counter: 8
+
+>> kernel thread: 2 counter: 9
+kernel thread: 3 counter: 9
+
+>> kernel thread 2 FINISHED
+kthread do exit
+exit_kthread_and_run_next
+kernel thread 3 FINISHED
+kthread do exit
+exit_kthread_and_run_next
+
+>>
+>>
+>>
 >>
 ```
